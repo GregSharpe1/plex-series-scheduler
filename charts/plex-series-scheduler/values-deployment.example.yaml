@@ -1,0 +1,67 @@
+deploymentMethod: deployment
+
+image:
+  repository: ghcr.io/gregsharpe1/plex-series-scheduler
+  tag: latest
+
+plexTokenSecret:
+  name: plex-series-scheduler
+  key: plex-token
+
+deployment:
+  replicas: 1
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+config:
+  plex:
+    url: http://plex:32400
+    token: ${PLEX_TOKEN}
+  scheduler:
+    interval: 30m
+    guideLookahead: 168h
+    maxRecordings: 1
+    dryRun: true
+    debug: false
+  rules:
+    - name: Formula 1
+      enabled: true
+      matchMode: sports_event
+      titleRegex: "^Formula 1"
+      includeKeywords:
+        - Grand Prix
+        - Practice
+        - Qualifying
+        - Sprint
+        - Sprint Shootout
+        - Race
+      excludeKeywords:
+        - Replay
+        - Repeat
+        - Highlights
+      channels:
+        - Sky Sports F1 HD
+        - Sky Sports F1
+      preferFirstMatch: true
+      dedupeWindow: 72h
+      paddingBefore: 10m
+      paddingAfter: 45m
+
+extraManifests:
+  - apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: plex-series-scheduler
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: vault
+        kind: ClusterSecretStore
+      target:
+        name: plex-series-scheduler
+      data:
+        - secretKey: plex-token
+          remoteRef:
+            key: plex/token

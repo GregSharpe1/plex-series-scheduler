@@ -145,6 +145,11 @@ Pushes to `main` publish two tags:
 
 The Helm chart lives in `charts/plex-series-scheduler`.
 
+Example values files are included for both modes:
+
+- `charts/plex-series-scheduler/values-cronjob.example.yaml`
+- `charts/plex-series-scheduler/values-deployment.example.yaml`
+
 It supports two deployment modes through the top-level `deploymentMethod` value:
 
 - `cronjob`
@@ -160,19 +165,14 @@ Install in CronJob mode:
 
 ```bash
 helm upgrade --install plex-series-scheduler ./charts/plex-series-scheduler \
-  --set deploymentMethod=cronjob \
-  --set plexTokenSecret.name=plex-series-scheduler \
-  --set plexTokenSecret.key=plex-token
+  -f charts/plex-series-scheduler/values-cronjob.example.yaml
 ```
 
 Install in Deployment mode with metrics and a ServiceMonitor:
 
 ```bash
 helm upgrade --install plex-series-scheduler ./charts/plex-series-scheduler \
-  --set deploymentMethod=deployment \
-  --set serviceMonitor.enabled=true \
-  --set plexTokenSecret.name=plex-series-scheduler \
-  --set plexTokenSecret.key=plex-token
+  -f charts/plex-series-scheduler/values-deployment.example.yaml
 ```
 
 ### Chart Configuration

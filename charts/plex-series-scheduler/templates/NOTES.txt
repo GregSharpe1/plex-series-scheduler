@@ -1,0 +1,4 @@
+Select the workload mode with `deploymentMethod`:
+
+- `cronjob` runs one pass on `cronjob.schedule` and disables metrics.
+- `deployment` runs continuously, exposes metrics, and can create a ServiceMonitor.

@@ -1,0 +1,3 @@
+{{- if not (or (eq .Values.deploymentMethod "cronjob") (eq .Values.deploymentMethod "deployment")) -}}
+{{- fail "Values.deploymentMethod must be either 'cronjob' or 'deployment'" -}}
+{{- end -}}
