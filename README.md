@@ -7,7 +7,8 @@ Current state:
 - Scheduled recording discovery is implemented against Plex.
 - Recording creation uses Plex's subscription template flow.
 - Matching, dedupe, dry-run, metrics, and structured logging are implemented.
-- SQLite persistence, Docker packaging, and Kubernetes deployment are not wired in yet.
+- Docker packaging and Kubernetes deployment are wired in.
+- SQLite persistence is not wired in yet.
 
 ## Requirements
 
@@ -119,6 +120,132 @@ Run it directly:
 ./scheduler -config config.yaml -once
 ```
 
+## Container Image
+
+The repository includes a multi-stage `Dockerfile` that builds a static Linux binary and ships it in a `scratch` image.
+
+Build locally:
+
+```bash
+docker build -t plex-series-scheduler:local .
+```
+
+GitHub Actions publishes images to:
+
+```text
+ghcr.io/gregsharpe1/plex-series-scheduler
+```
+
+Pushes to `main` publish two tags:
+
+- the full commit SHA
+- `latest`
+
+## Helm
+
+The Helm chart lives in `charts/plex-series-scheduler`.
+
+It supports two deployment modes through the top-level `deploymentMethod` value:
+
+- `cronjob`
+- `deployment`
+
+Default behavior:
+
+- `deploymentMethod: cronjob`
+- schedule: `0 * * * *`
+- `concurrencyPolicy: Forbid`
+
+Install in CronJob mode:
+
+```bash
+helm upgrade --install plex-series-scheduler ./charts/plex-series-scheduler \
+  --set deploymentMethod=cronjob \
+  --set plexTokenSecret.name=plex-series-scheduler \
+  --set plexTokenSecret.key=plex-token
+```
+
+Install in Deployment mode with metrics and a ServiceMonitor:
+
+```bash
+helm upgrade --install plex-series-scheduler ./charts/plex-series-scheduler \
+  --set deploymentMethod=deployment \
+  --set serviceMonitor.enabled=true \
+  --set plexTokenSecret.name=plex-series-scheduler \
+  --set plexTokenSecret.key=plex-token
+```
+
+### Chart Configuration
+
+The application config is rendered into a `ConfigMap` from the `config` value tree.
+
+Example values override:
+
+```yaml
+config:
+  plex:
+    url: http://plex:32400
+    token: ${PLEX_TOKEN}
+  scheduler:
+    interval: 30m
+    guideLookahead: 168h
+    maxRecordings: 1
+    dryRun: true
+    debug: false
+  rules:
+    - name: Formula 1
+      enabled: true
+      matchMode: sports_event
+      titleRegex: "^Formula 1"
+      includeKeywords:
+        - Grand Prix
+      channels:
+        - Sky Sports F1 HD
+      preferFirstMatch: true
+      dedupeWindow: 72h
+      paddingBefore: 10m
+      paddingAfter: 45m
+```
+
+The Plex token should be stored in a Kubernetes `Secret` and referenced by:
+
+```yaml
+plexTokenSecret:
+  name: plex-series-scheduler
+  key: plex-token
+```
+
+### Additional Manifests
+
+The chart supports `extraManifests` so you can add resources such as an `ExternalSecret` alongside the workload.
+
+Example:
+
+```yaml
+extraManifests:
+  - apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: plex-series-scheduler
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: vault
+        kind: ClusterSecretStore
+      target:
+        name: plex-series-scheduler
+      data:
+        - secretKey: plex-token
+          remoteRef:
+            key: plex/token
+```
+
+### Metrics
+
+- CronJob mode disables the metrics listener.
+- Deployment mode exposes `/metrics` and `/health` on port `9464` through a `Service`.
+- Set `serviceMonitor.enabled=true` to create a Prometheus Operator `ServiceMonitor` in deployment mode.
+
 ## What Happens On Startup
 
 Each scheduler run currently does this:
@@ -179,8 +306,7 @@ Recommended first run:
 
 - No SQLite persistence is connected yet.
   - Duplicate prevention currently relies on Plex scheduled recordings plus in-run memory.
-- No Dockerfile yet.
-- No Kubernetes manifests yet.
+- The Helm chart assumes a single active scheduler instance.
 - No rule CRUD API or UI yet.
 - No integration test against a real Plex server yet.
 
