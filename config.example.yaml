@@ -1,0 +1,45 @@
+plex:
+  url: http://plex:32400
+  token: ${PLEX_TOKEN}
+
+scheduler:
+  interval: 30m
+  guideLookahead: 168h
+  maxRecordings: 1
+  dryRun: true
+  debug: false
+
+rules:
+  - name: Formula 1
+    enabled: true
+    matchMode: sports_event
+    titleRegex: "^Formula 1"
+    includeKeywords:
+      - Grand Prix
+      - Practice
+      - Qualifying
+      - Sprint
+      - Sprint Shootout
+      - Race
+    excludeKeywords:
+      - Replay
+      - Repeat
+      - Highlights
+      - Classic
+      - Ted's Notebook
+      - The F1 Show
+      - Preview
+      - Review
+      - Documentary
+    channels:
+      - Sky Sports F1 HD
+      - Sky Sports F1
+    preferFirstMatch: true
+    dedupeWindow: 72h
+    paddingBefore: 10m
+    paddingAfter: 45m
+
+  - name: Taskmaster
+    enabled: true
+    matchMode: exact
+    title: Taskmaster

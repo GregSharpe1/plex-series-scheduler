@@ -1,0 +1,10 @@
+.git
+.github
+.playwright-mcp
+charts
+README.md
+docs
+config.yaml
+config.example.yaml
+.envrc
+scheduler
