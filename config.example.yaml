@@ -1,6 +1,8 @@
 plex:
   url: http://plex:32400
   token: ${PLEX_TOKEN}
+  recordingLibrarySectionID: ""
+  recordingSectionLocationID: ""
 
 scheduler:
   interval: 30m

@@ -19,6 +19,8 @@ config:
   plex:
     url: http://plex:32400
     token: ${PLEX_TOKEN}
+    recordingLibrarySectionID: ""
+    recordingSectionLocationID: ""
   notifications:
     webhook:
       url: ""

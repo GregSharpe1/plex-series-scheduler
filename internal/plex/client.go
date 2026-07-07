@@ -22,14 +22,16 @@ type Client interface {
 }
 
 type HTTPClient struct {
-	baseURL          *url.URL
-	token            string
-	httpClient       *http.Client
-	clientIdentifier string
-	product          string
-	version          string
-	deviceName       string
-	platform         string
+	baseURL                    *url.URL
+	token                      string
+	httpClient                 *http.Client
+	recordingLibrarySectionID  string
+	recordingSectionLocationID string
+	clientIdentifier           string
+	product                    string
+	version                    string
+	deviceName                 string
+	platform                   string
 }
 
 type channel struct {
@@ -159,14 +161,16 @@ func NewHTTPClientWithHTTPClient(cfg config.PlexConfig, httpClient *http.Client)
 	}
 
 	return &HTTPClient{
-		baseURL:          baseURL,
-		token:            cfg.Token,
-		httpClient:       httpClient,
-		clientIdentifier: "plex-series-scheduler",
-		product:          "Plex Series Scheduler",
-		version:          "0.1.0",
-		deviceName:       "plex-series-scheduler",
-		platform:         "linux",
+		baseURL:                    baseURL,
+		token:                      cfg.Token,
+		httpClient:                 httpClient,
+		recordingLibrarySectionID:  strings.TrimSpace(cfg.RecordingLibrarySectionID),
+		recordingSectionLocationID: strings.TrimSpace(cfg.RecordingSectionLocationID),
+		clientIdentifier:           "plex-series-scheduler",
+		product:                    "Plex Series Scheduler",
+		version:                    "0.1.0",
+		deviceName:                 "plex-series-scheduler",
+		platform:                   "linux",
 	}, nil
 }
 
@@ -260,10 +264,10 @@ func (c *HTTPClient) CreateRecording(ctx context.Context, req RecordingRequest) 
 
 	values := url.Values{}
 	values.Set("includeGrabs", "1")
-	if target := template.TargetLibrarySectionID.String(); target != "" {
+	if target := firstNonEmpty(c.recordingLibrarySectionID, template.TargetLibrarySectionID.String()); target != "" {
 		values.Set("targetLibrarySectionID", target)
 	}
-	if target := template.TargetSectionLocationID.String(); target != "" {
+	if target := firstNonEmpty(c.recordingSectionLocationID, template.TargetSectionLocationID.String()); target != "" {
 		values.Set("targetSectionLocationID", target)
 	}
 	if subscriptionType := template.Type.String(); subscriptionType != "" {

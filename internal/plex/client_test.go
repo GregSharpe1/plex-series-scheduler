@@ -240,6 +240,9 @@ func TestCreateRecordingUsesTemplateSubscription(t *testing.T) {
 	if got, want := postedQuery.Get("targetLibrarySectionID"), "10"; got != want {
 		t.Fatalf("targetLibrarySectionID = %q, want %q", got, want)
 	}
+	if got, want := postedQuery.Get("targetSectionLocationID"), "9"; got != want {
+		t.Fatalf("targetSectionLocationID = %q, want %q", got, want)
+	}
 	if got, want := postedQuery.Get("prefs[startOffsetMinutes]"), "2"; got != want {
 		t.Fatalf("prefs[startOffsetMinutes] = %q, want %q", got, want)
 	}
@@ -248,6 +251,54 @@ func TestCreateRecordingUsesTemplateSubscription(t *testing.T) {
 	}
 	if got, want := postedQuery.Get("params[airingChannels]"), "030%253D030%2525205STAR"; got != want {
 		t.Fatalf("params[airingChannels] = %q, want %q", got, want)
+	}
+}
+
+func TestCreateRecordingOverridesConfiguredRecordingLibraryLocation(t *testing.T) {
+	var postedQuery url.Values
+	mux := http.NewServeMux()
+	mux.HandleFunc("/media/subscriptions/template", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{
+			"MediaContainer": map[string]any{
+				"SubscriptionTemplate": []map[string]any{{
+					"MediaSubscription": []map[string]any{{
+						"targetLibrarySectionID":  "10",
+						"targetSectionLocationID": "9",
+						"type":                    "4",
+					}},
+				}},
+			},
+		})
+	})
+	mux.HandleFunc("/media/subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		postedQuery = r.URL.Query()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"MediaContainer":{}}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client, err := NewHTTPClient(config.PlexConfig{
+		URL:                        server.URL,
+		Token:                      "token",
+		RecordingLibrarySectionID:  "42",
+		RecordingSectionLocationID: "99",
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPClient() error = %v", err)
+	}
+
+	err = client.CreateRecording(context.Background(), RecordingRequest{GUID: "plex://episode/episode-1"})
+	if err != nil {
+		t.Fatalf("CreateRecording() error = %v", err)
+	}
+
+	if got, want := postedQuery.Get("targetLibrarySectionID"), "42"; got != want {
+		t.Fatalf("targetLibrarySectionID = %q, want %q", got, want)
+	}
+	if got, want := postedQuery.Get("targetSectionLocationID"), "99"; got != want {
+		t.Fatalf("targetSectionLocationID = %q, want %q", got, want)
 	}
 }
 

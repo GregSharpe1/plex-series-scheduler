@@ -30,6 +30,8 @@ Example:
 plex:
   url: http://your-plex-host:32400
   token: ${PLEX_TOKEN}
+  recordingLibrarySectionID: ""
+  recordingSectionLocationID: ""
 
 scheduler:
   interval: 30m
@@ -71,6 +73,7 @@ rules:
 
 Notes:
 - `${PLEX_TOKEN}` is expanded from your shell environment.
+- `plex.recordingLibrarySectionID` and `plex.recordingSectionLocationID` override Plex's default recording destination when you want a specific recordings library/location.
 - `dryRun: true` is the safest first run.
 - `guideLookahead: 168h` means 7 days.
 - Channel order is used as a final tie-breaker after quality and airtime.

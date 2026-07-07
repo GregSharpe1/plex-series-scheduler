@@ -25,8 +25,10 @@ type Config struct {
 }
 
 type PlexConfig struct {
-	URL   string `yaml:"url"`
-	Token string `yaml:"token"`
+	URL                        string `yaml:"url"`
+	Token                      string `yaml:"token"`
+	RecordingLibrarySectionID  string `yaml:"recordingLibrarySectionID"`
+	RecordingSectionLocationID string `yaml:"recordingSectionLocationID"`
 }
 
 type SchedulerConfig struct {
