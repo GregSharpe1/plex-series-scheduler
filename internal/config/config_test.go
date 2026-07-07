@@ -102,3 +102,151 @@ rules:
 		t.Fatal("expected validation error")
 	}
 }
+
+func TestLoadAppliesDefaultWebhookTimeout(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.yaml")
+
+	content := []byte(`plex:
+  url: http://plex:32400
+  token: token
+
+notifications:
+  webhook:
+    url: https://example.com/hooks/plex
+
+rules:
+  - name: Taskmaster
+    matchMode: exact
+    title: Taskmaster
+`)
+
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if got, want := cfg.Notifications.Webhook.Timeout.Duration, 10*time.Second; got != want {
+		t.Fatalf("webhook timeout = %v, want %v", got, want)
+	}
+}
+
+func TestLoadRejectsInvalidWebhookURL(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.yaml")
+
+	content := []byte(`plex:
+  url: http://plex:32400
+  token: token
+
+notifications:
+  webhook:
+    url: ftp://example.com/hooks/plex
+
+rules:
+  - name: Taskmaster
+    matchMode: exact
+    title: Taskmaster
+`)
+
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestLoadAppliesDefaultPushoverTimeout(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.yaml")
+
+	content := []byte(`plex:
+  url: http://plex:32400
+  token: token
+
+notifications:
+  pushover:
+    token: app-token
+    userKey: user-key
+
+rules:
+  - name: Taskmaster
+    matchMode: exact
+    title: Taskmaster
+`)
+
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if got, want := cfg.Notifications.Pushover.Timeout.Duration, 10*time.Second; got != want {
+		t.Fatalf("pushover timeout = %v, want %v", got, want)
+	}
+}
+
+func TestLoadRejectsIncompletePushoverConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.yaml")
+
+	content := []byte(`plex:
+  url: http://plex:32400
+  token: token
+
+notifications:
+  pushover:
+    token: app-token
+
+rules:
+  - name: Taskmaster
+    matchMode: exact
+    title: Taskmaster
+`)
+
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestLoadRejectsInvalidPushoverPriority(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.yaml")
+
+	content := []byte(`plex:
+  url: http://plex:32400
+  token: token
+
+notifications:
+  pushover:
+    token: app-token
+    userKey: user-key
+    priority: 3
+
+rules:
+  - name: Taskmaster
+    matchMode: exact
+    title: Taskmaster
+`)
+
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected validation error")
+	}
+}

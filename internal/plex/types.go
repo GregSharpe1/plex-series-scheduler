@@ -34,6 +34,9 @@ type ScheduledRecording struct {
 }
 
 type RecordingRequest struct {
+	Title         string
+	Subtitle      string
+	EpisodeTitle  string
 	GUID          string
 	RatingKey     string
 	AiringID      string

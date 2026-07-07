@@ -11,6 +11,7 @@ import (
 	"github.com/GregSharpe1/plex-series-scheduler/internal/config"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/matcher"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/metrics"
+	"github.com/GregSharpe1/plex-series-scheduler/internal/notifications"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/plex"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/rules"
 )
@@ -20,14 +21,16 @@ type ConfigLoader interface {
 }
 
 type ClientFactory func(config.PlexConfig) (plex.Client, error)
+type NotifierFactory func(config.NotificationsConfig) (notifications.Notifier, error)
 
 type Scheduler struct {
-	loader  ConfigLoader
-	clients ClientFactory
-	metrics *metrics.Registry
-	logger  *slog.Logger
-	match   *matcher.Engine
-	now     func() time.Time
+	loader    ConfigLoader
+	clients   ClientFactory
+	notifiers NotifierFactory
+	metrics   *metrics.Registry
+	logger    *slog.Logger
+	match     *matcher.Engine
+	now       func() time.Time
 }
 
 type Plan struct {
@@ -36,14 +39,20 @@ type Plan struct {
 	Matched  int
 }
 
-func New(loader ConfigLoader, clients ClientFactory, registry *metrics.Registry, logger *slog.Logger) *Scheduler {
+func New(loader ConfigLoader, clients ClientFactory, notifiers NotifierFactory, registry *metrics.Registry, logger *slog.Logger) *Scheduler {
+	if notifiers == nil {
+		notifiers = func(config.NotificationsConfig) (notifications.Notifier, error) {
+			return notifications.New(config.NotificationsConfig{})
+		}
+	}
 	return &Scheduler{
-		loader:  loader,
-		clients: clients,
-		metrics: registry,
-		logger:  logger,
-		match:   matcher.New(),
-		now:     time.Now,
+		loader:    loader,
+		clients:   clients,
+		notifiers: notifiers,
+		metrics:   registry,
+		logger:    logger,
+		match:     matcher.New(),
+		now:       time.Now,
 	}
 }
 
@@ -88,6 +97,10 @@ func (s *Scheduler) runWithConfig(ctx context.Context, cfg config.Config) error 
 	client, err := s.clients(cfg.Plex)
 	if err != nil {
 		return fmt.Errorf("build plex client: %w", err)
+	}
+	notifier, err := s.notifiers(cfg.Notifications)
+	if err != nil {
+		return fmt.Errorf("build notifier: %w", err)
 	}
 
 	guide, err := client.Guide(ctx, cfg.Scheduler.GuideLookahead.Duration)
@@ -135,6 +148,14 @@ func (s *Scheduler) runWithConfig(ctx context.Context, cfg config.Config) error 
 		s.metrics.PlexAPIRequestsTotal.WithLabelValues("create_recording").Inc()
 		s.metrics.RecordingsCreated.Inc()
 		createdCount++
+		if err := notifier.RecordingSubmitted(ctx, req); err != nil {
+			s.logger.Error("recording notification failed",
+				slog.Any("error", err),
+				slog.String("rule", req.RuleName),
+				slog.String("airing_id", req.AiringID),
+				slog.String("programme_id", req.ProgrammeID),
+			)
+		}
 	}
 
 	duration := time.Since(start)
@@ -204,6 +225,9 @@ func (s *Scheduler) plan(cfg config.Config, activeRules []config.Rule, guide []p
 			}
 
 			plan.Requests = append(plan.Requests, plex.RecordingRequest{
+				Title:         programme.Title,
+				Subtitle:      programme.Subtitle,
+				EpisodeTitle:  programme.EpisodeTitle,
 				GUID:          programme.GUID,
 				RatingKey:     programme.RatingKey,
 				AiringID:      programme.AiringID,

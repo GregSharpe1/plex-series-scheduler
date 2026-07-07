@@ -9,6 +9,19 @@ scheduler:
   dryRun: true
   debug: false
 
+notifications:
+  webhook:
+    url: ""
+    timeout: 10s
+    headers: {}
+  pushover:
+    token: ${PUSHOVER_TOKEN}
+    userKey: ${PUSHOVER_USER_KEY}
+    device: ""
+    sound: ""
+    priority: 0
+    timeout: 10s
+
 rules:
   - name: Formula 1
     enabled: true

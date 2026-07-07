@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -17,9 +18,10 @@ type Loader struct {
 }
 
 type Config struct {
-	Plex      PlexConfig      `yaml:"plex"`
-	Scheduler SchedulerConfig `yaml:"scheduler"`
-	Rules     []Rule          `yaml:"rules"`
+	Plex          PlexConfig          `yaml:"plex"`
+	Scheduler     SchedulerConfig     `yaml:"scheduler"`
+	Notifications NotificationsConfig `yaml:"notifications"`
+	Rules         []Rule              `yaml:"rules"`
 }
 
 type PlexConfig struct {
@@ -33,6 +35,26 @@ type SchedulerConfig struct {
 	Debug          bool     `yaml:"debug"`
 	GuideLookahead Duration `yaml:"guideLookahead"`
 	MaxRecordings  int      `yaml:"maxRecordings"`
+}
+
+type NotificationsConfig struct {
+	Webhook  WebhookNotificationConfig  `yaml:"webhook"`
+	Pushover PushoverNotificationConfig `yaml:"pushover"`
+}
+
+type WebhookNotificationConfig struct {
+	URL     string            `yaml:"url"`
+	Headers map[string]string `yaml:"headers"`
+	Timeout Duration          `yaml:"timeout"`
+}
+
+type PushoverNotificationConfig struct {
+	Token    string   `yaml:"token"`
+	UserKey  string   `yaml:"userKey"`
+	Device   string   `yaml:"device"`
+	Sound    string   `yaml:"sound"`
+	Priority int      `yaml:"priority"`
+	Timeout  Duration `yaml:"timeout"`
 }
 
 type Rule struct {
@@ -90,6 +112,12 @@ func applyDefaults(cfg *Config) {
 	if cfg.Scheduler.GuideLookahead.Duration == 0 {
 		cfg.Scheduler.GuideLookahead = Duration{Duration: defaultGuideLookahead}
 	}
+	if cfg.Notifications.Webhook.URL != "" && cfg.Notifications.Webhook.Timeout.Duration == 0 {
+		cfg.Notifications.Webhook.Timeout = Duration{Duration: 10 * time.Second}
+	}
+	if cfg.Notifications.Pushover.Token != "" && cfg.Notifications.Pushover.Timeout.Duration == 0 {
+		cfg.Notifications.Pushover.Timeout = Duration{Duration: 10 * time.Second}
+	}
 }
 
 func validate(cfg *Config) error {
@@ -108,6 +136,9 @@ func validate(cfg *Config) error {
 	if cfg.Scheduler.MaxRecordings < 0 {
 		return fmt.Errorf("scheduler.maxRecordings must be zero or greater")
 	}
+	if err := validateNotifications(cfg.Notifications); err != nil {
+		return err
+	}
 
 	seenNames := make(map[string]struct{}, len(cfg.Rules))
 	for i := range cfg.Rules {
@@ -122,6 +153,44 @@ func validate(cfg *Config) error {
 		seenNames[key] = struct{}{}
 	}
 
+	return nil
+}
+
+func validateNotifications(cfg NotificationsConfig) error {
+	if cfg.Webhook.Timeout.Duration < 0 {
+		return fmt.Errorf("notifications.webhook.timeout must be zero or greater")
+	}
+	if cfg.Pushover.Timeout.Duration < 0 {
+		return fmt.Errorf("notifications.pushover.timeout must be zero or greater")
+	}
+	if cfg.Webhook.URL == "" {
+		if cfg.Pushover.Token == "" && cfg.Pushover.UserKey == "" {
+			return nil
+		}
+	} else {
+		parsed, err := url.Parse(cfg.Webhook.URL)
+		if err != nil {
+			return fmt.Errorf("notifications.webhook.url is invalid: %w", err)
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return fmt.Errorf("notifications.webhook.url must use http or https")
+		}
+		if parsed.Host == "" {
+			return fmt.Errorf("notifications.webhook.url must include a host")
+		}
+	}
+	if cfg.Pushover.Token == "" && cfg.Pushover.UserKey == "" {
+		return nil
+	}
+	if cfg.Pushover.Token == "" {
+		return fmt.Errorf("notifications.pushover.token is required when pushover is enabled")
+	}
+	if cfg.Pushover.UserKey == "" {
+		return fmt.Errorf("notifications.pushover.userKey is required when pushover is enabled")
+	}
+	if cfg.Pushover.Priority < -2 || cfg.Pushover.Priority > 2 {
+		return fmt.Errorf("notifications.pushover.priority must be between -2 and 2")
+	}
 	return nil
 }
 

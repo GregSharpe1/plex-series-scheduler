@@ -16,6 +16,18 @@ config:
   plex:
     url: http://plex:32400
     token: ${PLEX_TOKEN}
+  notifications:
+    webhook:
+      url: ""
+      timeout: 10s
+      headers: {}
+    pushover:
+      token: ${PUSHOVER_TOKEN}
+      userKey: ${PUSHOVER_USER_KEY}
+      device: ""
+      sound: ""
+      priority: 0
+      timeout: 10s
   scheduler:
     interval: 30m
     guideLookahead: 168h

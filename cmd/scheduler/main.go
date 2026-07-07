@@ -14,6 +14,7 @@ import (
 	"github.com/GregSharpe1/plex-series-scheduler/internal/config"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/logging"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/metrics"
+	"github.com/GregSharpe1/plex-series-scheduler/internal/notifications"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/plex"
 	"github.com/GregSharpe1/plex-series-scheduler/internal/scheduler"
 )
@@ -42,6 +43,8 @@ func main() {
 	loader := config.NewLoader(configPath)
 	engine := scheduler.New(loader, func(cfg config.PlexConfig) (plex.Client, error) {
 		return plex.NewHTTPClient(cfg)
+	}, func(cfg config.NotificationsConfig) (notifications.Notifier, error) {
+		return notifications.New(cfg)
 	}, registry, logger)
 
 	if runOnce {

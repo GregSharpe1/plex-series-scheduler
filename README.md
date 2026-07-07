@@ -38,6 +38,12 @@ scheduler:
   dryRun: true
   debug: false
 
+notifications:
+  webhook:
+    url: ""
+    timeout: 10s
+    headers: {}
+
 rules:
   - name: Formula 1
     enabled: true
@@ -69,6 +75,7 @@ Notes:
 - `guideLookahead: 168h` means 7 days.
 - Channel order is used as a final tie-breaker after quality and airtime.
 - `scheduler.maxRecordings` limits how many recordings may overlap globally at the same time. `0` means unlimited.
+- `notifications.webhook.url` enables an outbound JSON webhook after each successful recording submission.
 
 ## Getting a Plex Token
 
@@ -245,6 +252,58 @@ extraManifests:
 - CronJob mode disables the metrics listener.
 - Deployment mode exposes `/metrics` and `/health` on port `9464` through a `Service`.
 - Set `serviceMonitor.enabled=true` to create a Prometheus Operator `ServiceMonitor` in deployment mode.
+
+## Notifications
+
+The scheduler can send notifications after each successful recording submission via either a generic webhook or Pushover.
+
+Webhook example:
+
+```yaml
+notifications:
+  webhook:
+    url: https://example.com/hooks/plex-series-scheduler
+    timeout: 10s
+    headers:
+      Authorization: Bearer ${NOTIFICATION_TOKEN}
+```
+
+Payload shape:
+
+```json
+{
+  "event": "recording_submitted",
+  "ruleName": "Formula 1",
+  "title": "Formula 1",
+  "subtitle": "British Grand Prix: Race",
+  "episodeTitle": "British Grand Prix: Race",
+  "channelName": "Sky Sports F1 HD",
+  "airingId": "12345",
+  "programmeId": "67890",
+  "startAt": "2026-07-05T18:40:00Z",
+  "endAt": "2026-07-05T20:55:00Z",
+  "paddingBefore": "10m0s",
+  "paddingAfter": "45m0s",
+  "submittedAt": "2026-07-05T12:00:00Z"
+}
+```
+
+Notification delivery failures are logged but do not fail the scheduler run.
+
+Pushover example:
+
+```yaml
+notifications:
+  pushover:
+    token: ${PUSHOVER_TOKEN}
+    userKey: ${PUSHOVER_USER_KEY}
+    device: ""
+    sound: ""
+    priority: 0
+    timeout: 10s
+```
+
+Pushover messages use the title `Plex Series Scheduler` and include the matched rule, programme title, channel, and start time.
 
 ## What Happens On Startup
 
